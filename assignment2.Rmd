@@ -1,0 +1,197 @@
+---
+title: "assignment2"
+author: "Xumin Shen"
+date: "2023-10-11"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Q1. Dataset exploration.
+## Q1. Dataset QC.
+```{r}
+library(dplyr)
+library(ggplot2)
+library(monocle3)
+library(ggpubr)
+setwd("/Users/azizilab/Documents/BMEN4500/dataset2/")
+cds <- readRDS("dataset2.rds")
+
+```
+```{r}
+columndata <- cds %>% colData() %>% as.data.frame()
+rowdata <- cds %>% rowData()%>%as.data.frame()
+```
+
+Q1-1. The MKI67 and CDK1 genes are markers of proliferation and mitosis, respectively. Plot the expression of each gene as a function of treatment using the plot_genes_violin function in monocle3, specifying a pseudocount = 1. Use stat_compare_means (example usage below) to perform a Wilcoxon test to determine whether the two populations are significantly different. Is there an apparent effect of your treatment on the expression of these genes? Are the differences statistically significant? What can you conclude regarding the effect of treatment on these phenotypes? [10 pts]
+
+
+Ans: The expression of gene MKI67 is significantly lower under the treatment of doxorubicin. The expression of gene CDK1 is also significantly lower under the treatment of doxorubicin. 
+
+A decrease in MKI67 expression in response to doxorubicin indicates a reduction in cell proliferation.
+A decrease in CDK1 expression suggests that there is a reduction or arrest in mitotic activity upon treatment with doxorubicin.
+Doxorubicin treatment appears to have an inhibitory effect on both cell proliferation and mitosis, as evidenced by the significant downregulation of the MKI67 and CDK1 genes, respectively. This suggests that doxorubicin may act as an anti-proliferative agent, potentially halting the growth and division of cells. Given that doxorubicin is a known chemotherapy agent, this aligns with its therapeutic action, which is to prevent the rapid growth and division of cancer cells.
+```{r}
+plot_genes_violin(cds[rowData(cds)$gene_short_name == "MKI67",], group_cells_by = "treatment", pseudocount = 1) + ggpubr::stat_compare_means(method = "wilcox.test",label = "p.signif")
+plot_genes_violin(cds[rowData(cds)$gene_short_name == "CDK1",], group_cells_by = "treatment", pseudocount = 1) + ggpubr::stat_compare_means(method = "wilcox.test",label = "p.signif")
+
+```
+
+Q1-2. Plot the expression of 2 marker genes associated with response to treatment for your dataset as in Q1-1. For dataset 1, plot the expression levels of CDKN1A and PMAIP1. For dataset 2, plot the expression levels of CDH1 and FN1. Are the differences statistically significant? ru[10 pts]
+Ans: Yes, the differences are statistically significant.
+When CDKN1A expressed, it inhibits cell cycle progression, specifically at the G1 phase. It's often induced in response to DNA damage, serving as a checkpoint ensuring that cells don't proceed with division until DNA repairs are completed. Doxorubicin treatment leads to an increase in CDKN1A expression, it suggests that the drug has induced DNA damage, and the cell is halting the cell cycle to attempt repair. This would be consistent with doxorubicin's mechanism of action related to DNA intercalation and topoisomerase II inhibition, both of which can cause DNA damage.
+
+PMAIP1 promotes apoptosis by binding and inhibiting anti-apoptotic proteins. It is often upregulated in response to cellular stresses, including DNA damage. Doxorubicin treatment leads to increased PMAIP1 expression, it suggests that the cells are undergoing apoptosis or are under significant stress that triggers apoptotic pathways. This would be consistent with the cellular damage caused by doxorubicin, including its role in generating free radicals that lead to DNA and cellular damage.
+
+
+```{r}
+plot_genes_violin(cds[rowData(cds)$gene_short_name == "CDKN1A",], group_cells_by = "treatment", pseudocount = 1) + ggpubr::stat_compare_means(method = "wilcox.test",label = "p.signif")
+plot_genes_violin(cds[rowData(cds)$gene_short_name == "PMAIP1",], group_cells_by = "treatment", pseudocount = 1) + ggpubr::stat_compare_means(method = "wilcox.test",label = "p.signif")
+
+```
+
+For Q2 and Q3, it will be useful to refer to the Differential Expression Analysis section of the monocle3 vignette (https://cole-trapnell-lab.github.io/monocle3/docs/differential/#regression-analysis). 
+
+ 
+
+Q2. Differential expression (DE) analysis.
+
+Q2-1. Identify how many genes are expressed in 5% or more of the cells found in your dataset. Hint: detect_genes annotates gene information in both colData (num_genes_expressed) and rowData (num_cells_expressed). [5 pts]
+Ans: 10418 genes
+```{r}
+cds <- detect_genes(cds)
+sum(rowData(cds)$num_cells_expressed>8910*0.05)
+```
+
+Q2-2. Negative binomial regression using generalized linear models (glm) can be used to identify genes whose expression is differentially regulated as a function of one or more covariates. 
+Using the monocle3 function fit_models and the subset of genes identified in Q2-1, perform a differential gene expression test to identify expressed genes that vary as a function of treatment. *Note: in R, formulas are preceded by a ~.
+The monocle3 function coefficient_table, applies the Wald test to determine whether the coefficients in your model differ significantly from zero. Examine the table returned by coefficient_table, including the names of the columns. Provide the dimensions of the output below. In addition, save this table for future use and submit it as a separate tab-delimited text file in Courseworks. [5 pts].
+Ans: dimension of the output is 31254 x 13.
+```{r}
+cds_subset <- cds[rowData(cds)$num_cells_expressed>8910*0.05]
+
+diff_test <- fit_models(cds_subset,model_formula_str ="~treatment",expression_family = 'negbinomial')
+
+test_res <- coefficient_table(diff_test) %>% dplyr::select(-model,-model_summary)
+
+test_res$q_value <- p.adjust(test_res$p_value, method = "BH")
+test_res
+```
+```{r}
+# Save dataframe df
+write.table(test_res, file="test_res_2.txt", sep="\t", row.names=FALSE, quote=FALSE)
+```
+ 
+
+*** Note: the output of coefficient_table includes data that makes its size much larger than just the test results. You can remove these when you arrive at the test results using dplyr as follows:
+
+test_res <- coefficient_table(diff_test) %>% dplyr::select(-model,-model_summary)
+
+
+
+Q2-3. Using the results from your coefficient table (Q2-2) and focusing on the coefficient (model term) that describes the effect of treatment on gene expression (i.e., exclude the Intercept term), plot the relationship between statistical significance (-log10 of the q_value) and effect size (normalized_effect) across your per gene tests as a volcano plot. Briefly describe the relationship between these. [5 pts]
+According to the volcano plot, most of the genes are not statistically significant in relation to the treatment since they have a q-value > 0.01. There are in total more genes shown to have an up regulation.
+
+```{r}
+treatment_res = test_res[test_res$term=='treatmentdoxorubicin',]
+
+# Assuming your results data frame is named test_res
+volcano_plot <- ggplot(treatment_res, aes(x = normalized_effect, y = -log10(q_value))) + 
+  geom_point(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Volcano Plot",
+       x = "Effect Size (normalized_effect)",
+       y = "-log10(q-value)") +
+  geom_hline(yintercept = -log10(0.01), color="red", linetype="dashed") +
+  geom_vline(xintercept = 0, color="black", linetype="dashed")
+
+print(volcano_plot)
+
+```
+
+Q2-4. Identify the total number of genes differentially regulated by treatment at a multiple hypothesis testing adjusted p-value (i.e., q_value) cutoff of 0.01. [5 pts]
+Ans: 5443 genes
+```{r}
+test_res_sig = treatment_res %>% filter (q_value < 0.01)%>%
+         select(gene_short_name, term, q_value, estimate,normalized_effect)
+
+
+test_res_sig
+```
+Bonus. Examine the top 10 upregulated or downregulated genes, and identify genes whose expression changes are consistent with the phenotypes induced by the exposures (e.g., for dataset1, the response of cells to DNA damage, or for dataset2, an induction of an EMT. Suggestion: Sort your DEG results using the normalized_effect column for the term associated with each exposure/treatment and save their HUGO gene symbols (i.e., the gene_short_name column).  [5 pts]
+```{r}
+test_res_sig_down <- test_res_sig %>%
+  arrange(normalized_effect)
+
+test_res_sig_up <- test_res_sig %>%
+  arrange(desc(normalized_effect))
+
+
+```
+# 10 top up regulate genes
+```{r}
+test_res_sig_up[1:10,]$gene_short_name
+
+```
+Ans: GDF15 stands out as having a known connection with the response to DNA damage.
+
+GDF15 is known to be involved in various stress responses, including mitochondrial dysfunction and DNA damage. Upon DNA damage, GDF15 can be upregulated and play roles in the cellular response.
+
+LCE1B & LCE1E are part of the LCE gene cluster, which plays a role in epidermal differentiation and cornification.
+SUGCT is involved in amino acid metabolism.
+AKR1B10 is primarily known for its role in lipid metabolism and detoxification processes.
+LY6D, MYBPHL don't have direct involvement in DNA damage response.
+UNC5B-AS1 is an antisense RNA.
+AC006262.5 is a non-coding RNA.
+TRIM22 is known for its roles in immune responses, especially in the context of viral infections.
+
+# 10 top downregualte gemes
+```{r}
+test_res_sig_down[1:10,]$gene_short_name
+
+```
+Ans:CCNB1 and CDC20 are the most directly connected to cell cycle regulation in the context of DNA damage, as DNA damage checkpoints often regulate these genes to prevent cells with damaged DNA from undergoing mitosis.
+
+HMMR plays a role in cell proliferation and migration. It has been associated with microtubule function and mitotic spindle assembly. Its relation to DNA damage response has been suggested in some studies, and it might be involved in cell cycle checkpoints.
+
+HIST1H1D, HIST1H1A, HIST1H2BH, HIST1H1B: These genes belong to the histone cluster 1 family. Histones play a critical role in chromatin structure and DNA repair. Specifically, H1 histones are involved in higher-order chromatin structure, and changes in their expression could influence DNA repair mechanisms, although a direct "downregulation in response to DNA damage" isn't well-established.
+
+DEPDC1 is involved in cell cycle progression, and its overexpression has been noted in some cancers. A direct role in the DNA damage response isn't well-established but given its involvement in the cell cycle; it might influence cellular responses to DNA damage.
+
+**CCNB1 is a regulatory protein involved in mitosis. It is essential for the control of the cell cycle at the G2/M transition. A change in its expression can be a response to DNA damage, leading to cell cycle arrest.
+
+**CDC20 is an essential regulator of cell division and works with the anaphase-promoting complex/cyclosome. In the context of DNA damage, its activity might be altered to ensure that cells do not proceed through mitosis with damaged DNA.
+
+KIF20A is involved in cytokinesis and is necessary for chromosome segregation during mitosis. Like other cell cycle-related genes, its expression or activity could be influenced by DNA damage, but a direct "downregulation" role isn't well-established.
+
+PIF1 is a DNA helicase involved in DNA replication and repair. It plays roles in resolving DNA structures to ensure replication and repair fidelity.
+
+
+
+
+Q3. Concepts from class.
+
+ 
+
+Q3-1. You are interested in identifying genes responsible for a rare genetic disorder that you suspect is associated with germline mutations of a disease-causing gene. You have access to 5 sets of parent-child triads where only the offspring is affected by the disorder. To identify the disease-causing variant, you perform exome sequencing of the 15 individuals. How would you compare differences in coding regions within and between triads to hone in on the most likely causal gene? Do you expect the same mutation in all affected individuals?  [10 pts]
+
+Ans:
+In each genetic triad, only the offspring manifest the disorder, prompting a focus on variants found in the child but absent in both parents, which may suggest the presence of de novo mutations. After filtering these mutations, it's imperative to assess their potential functional impact, with particular emphasis on those mutations that appear deleterious or damaging. Furthermore, the possibility of compound heterozygosity or recessive mutations is explored by pinpointing genes where the child has inherited a unique rare variant from each parent. In the context of recessive disorders, attention is given to situations where the child exhibits homozygosity for a rare mutation, while both parents are heterozygous carriers. It's also essential to gauge the consistency of mutations across different triads. While it's possible for individual affected offspring to harbor distinct mutations, observing recurrent mutations—either identical or within the same gene or pathway—across multiple affected individuals and absent in their unaffected parents would bolster the argument for its causative role in the disorder. Finally, diving deeper into the biology, one should investigate the known functionalities of genes with potential causative mutations, examining any historical associations with related disorders or involvement in biologically relevant pathways.
+
+
+
+
+
+
+Q3-2. You are interested in defining the regulation of the BHMT locus from Assignment 1. Specifically, you would like to identify non-coding loci that interact with the BHMT locus and may vary in atherosclerosis patients. Which general class of methods would you choose to answer this question? Which in particular do you believe is best suited for un-biasedly identifying these elements? After identification, which method could you use to validate interactions for your most promising hits?  [10 pts]
+
+Ans:
+To understand the regulation of the BHMT locus and discern the interactions of non-coding loci, especially in the context of variations observed in atherosclerosis patients, it's essential to tap into methods that examine chromatin interactions and accessibility. Chromatin Conformation Capture Techniques stand out as the primary class of methods for this purpose. They are tailored to identify physical associations between distinct genome regions, shining a spotlight especially on interactions between promoters and their distant regulatory counterparts.
+
+Among these techniques, Hi-C emerges as the method of choice. The power of Hi-C lies in its unbiased, genome-wide approach, capturing interactions across all conceivable DNA fragment pairs. This comprehensive capability makes it uniquely suited for delving deep into the BHMT locus's interactions. It offers a panoramic view of the 3D chromatin landscape and unearths any distant non-coding regions potentially in liaison with the BHMT locus.
+
+Validation: Post the expansive sweep of Hi-C, more focused techniques like the Chromosome Conformation Capture (3C) or its derivative, 4C (Circular Chromosome Conformation Capture), come into play. While 3C zeroes in on interactions between two specific DNA regions, facilitated by custom-designed primers for the BHMT locus and its potential interacting partners, 4C broadens the horizon. It validates interactions of a locus of interest, such as BHMT, with a myriad of other genomic regions.
+

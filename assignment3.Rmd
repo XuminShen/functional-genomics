@@ -1,0 +1,334 @@
+---
+title: "Assignment3"
+author: "Xumin Shen"
+date: "2023-10-30"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(monocle3)
+setwd("/Users/azizilab/Documents/BMEN4500/dataset1/")
+cds <- readRDS("dataset1.rds")
+columndata <- cds %>% colData() %>% as.data.frame()
+rowdata <- cds %>% rowData()%>%as.data.frame()
+
+```
+
+
+Q1. Gene set analysis.
+Q1-2. Examine the top-upregulated gene (i.e., the gene with the highest normalized effect and under the q_value cutoff) as a function of treatment. Using a violin plot, plot the expression of this gene as a function of treatment (remember to add a pseudocount of 1). Describe the function of the product of this gene. Are the changes in its expression level consistent with the mechanism of action of the treatment that cells were exposed to? [10 pts]
+```{r}
+# resd in DEG from assignment2
+test_res <- read.table("test_res.txt", header = TRUE, sep = "\t")
+sig_res<-test_res[test_res$q_value<0.01,]
+```
+
+```{r}
+df_sorted <- sig_res[order(sig_res$normalized_effect,decreasing = TRUE), ]
+#df_sorted
+```
+```{r}
+plot_genes_violin(cds[rowData(cds)$gene_short_name == "GDF15",], group_cells_by = "treatment", pseudocount = 1) + ggpubr::stat_compare_means(method = "wilcox.test",label = "p.signif")
+```
+
+
+
+
+GDF15 is a member of the transforming growth factor β (TGF-β) superfamily, which includes various cytokines involved in regulating developmental processes and cellular responses. GDF15 itself has several key biological functions:
+
+Regulation of Inflammatory Responses: GDF15 plays a role in modulating inflammatory and apoptotic pathways in injured tissues and during certain diseases. It is often upregulated in response to acute injury, inflammation, and during oxidative stress.
+
+Role in Disease: Elevated levels of GDF15 are associated with a range of diseases, including cardiovascular diseases, cancer, and others. Its expression is often indicative of cellular stress or disease states.
+
+Cancer and Cellular Stress Response: In the context of cancer, GDF15 can have diverse roles. It's known to be involved in tumor suppression and progression, and its expression is often upregulated in response to cellular stress and DNA damage.
+
+Cellular Growth and Apoptosis: It can influence processes like cell growth, differentiation, and apoptosis, although its exact role can vary depending on the tissue and context.
+
+From this violin plot, we can see that gene GDF15 express much more under the treatment (doxorubicin).
+
+Doxorubicin is a chemotherapy medication used mainly in cancer treatment. It works primarily by intercalating DNA, disrupting topoisomerase-II-mediated DNA repair, and generating free radicals that damage cellular components.
+
+The upregulation of GDF15 in response to doxorubicin treatment aligns well with its known functions. Doxorubicin induces cellular stress, DNA damage, and apoptotic responses. Given GDF15's role in responding to stress, inflammation, and damage at the cellular level, its increased expression could be indicative of the cells' response to the DNA damage and oxidative stress caused by doxorubicin.
+
+The heightened expression of GDF15 could therefore be seen as a biomarker for cellular responses to chemotherapy agents like doxorubicin and may also contribute to the molecular mechanisms of drug action, such as by mediating inflammatory responses or cell survival pathways.
+
+
+
+Q1-2. Identify the top 100 upregulated and top 100 downregulated genes and save their HUGO gene symbols (i.e., their gene_short_name). Using the Reactome Pathway Database Analysis tool (https://reactome.org/PathwayBrowser/#TOOL=AT), identify gene terms associated with each set of genes. Examine and provide the top gene sets (e.g., the first 5-10 associated gene sets). What can you conclude of the effects of treatment on cells given the biological pathways that gene set analysis identifies as associated with your differentially expressed genes? [10 pts]
+```{r}
+#df_sorted
+```
+
+
+
+```{r}
+up100gene = df_sorted[1:100,]$gene_short_name
+writeLines(up100gene, "up100gene.txt")
+last_100 <- tail(df_sorted, 100)
+down100gene<-last_100$gene_short_name
+writeLines(down100gene, "down100gene.txt")
+```
+
+
+![For the top 100 upregulated genes:](/Users/azizilab/Documents/BMEN4500/Homo sapiens.jpg)
+```{r}
+result_up <- read.csv("result_up.csv")
+result_up
+```
+![For the top 100 downregulated genes:](/Users/azizilab/Documents/BMEN4500/Homo sapiens_2.jpg)
+```{r}
+result_down <- read.csv("result_down.csv")
+result_down
+```
+Pathway Involvement:
+
+Cancer Pathways:
+- Gene sets associated with general cancer pathways (e.g., "pathways in cancer", "colorectal cancer") were prominently up-regulated.
+
+This suggests that doxorubicin treatment triggers a broad response in cancer-related cellular activities, potentially reflecting a stress or damage response in the cells.
+
+DNA Damage Response:
+- Several genes were linked to DNA repair and the cellular response to DNA damage (e.g., "p53 signaling pathway", "cell cycle").
+
+Given doxorubicin's role as a DNA-interacting drug, the up-regulation in these areas aligns with the expected cellular response to DNA damage and the attempt to halt cell cycle progression.
+
+Apoptosis:
+- Apoptosis-related pathways, such as those related to programmed cell death, were up-regulated.
+
+This suggests that the treatment may induce apoptosis in cells, which is a desired outcome in cancer treatment, as it can lead to the death of cancer cells.
+
+Immune Response:
+- Up-regulation in immune system-related pathways (e.g., "cytokine-cytokine receptor interaction", "Toll-like receptor signaling pathway").
+
+This might indicate an activation of the immune response, which could be either a direct effect of doxorubicin or a secondary response to cellular stress and damage.
+
+Metabolic Changes:
+- Changes in genes related to metabolism (e.g., "metabolic pathways", "biosynthesis of antibiotics").
+
+The metabolic shift might reflect the cell's effort to manage stress, repair damage, or could indicate changes in energy requirements due to the drug's impact.
+
+
+Focusing on the top sets such as cancer pathways, DNA damage response, and apoptosis gives a clear indication that doxorubicin primarily impacts mechanisms central to cell proliferation, survival, and death. The prominence of these pathways among the up-regulated genes signifies a robust cellular response to the drug.
+
+
+For Q2 and Q3, it will be useful to refer to the “Preprocess the data” and “Reduce dimensionality and visualize cells” sections of the monocle3 vignette (https://cole-trapnell-lab.github.io/monocle3/docs/clustering/#pre-process & https://cole-trapnell-lab.github.io/monocle3/docs/clustering/#reduce-dimension).
+
+Links to an external site.
+
+As we explored in Assignments #1 and #2, your dataset contains cells exposed to a treatment (i.e., doxorubicin or TGF-b exposure) that leads to changes in the expression of many genes. In addition, the cells in your dataset have been genetically perturbed by the expression of the nuclease Cas9 and a single guide RNA (sgRNA) targeting a gene of interest or a nontargeting control sgRNA (unperturbed cells). In Q2 and Q3 of this assignment, you will explore how genetic perturbation alters the response of cells to exposure.
+
+ 
+
+Q2. Dimensionality reduction and visualization using Uniform Manifold Projection and Approximation (UMAP).
+Q2-1. Use the monocle3 function preprocess_cds to perform principal component analysis (PCA) of your dataset using genes expressed in 5% or more of the cells as feature genes (identified in Assignment #2). You can pass a character vector of ensemble gene ids to preproccess_cds via use_genes.
+```{r}
+cds <- detect_genes(cds)
+cds_subset <- cds[rowData(cds)$num_cells_expressed>=8910*0.05]
+genelist = row.names(rowData(cds_subset))
+cds <- preprocess_cds(cds, method = 'PCA',use_genes = genelist)
+plot_pc_variance_explained(cds)
+
+```
+```{r}
+cds <- reduce_dimension(cds)
+```
+
+After pre-processing via PCA, apply UMAP to visualize your dataset in 2 dimensions using the monocle3 function reduce_dimension. Use the function plot_cells to plot and save the resulting UMAP coloring cells by the treatment they were exposed to. How does the distribution of cells across UMAP space vary by exposure? [5 pts]. Note: it may be useful to define the color of the cells by treatment by passing scale_color_manual to your ggplot2 code (see below).
+Cells on the left and those on the small upper-right island have been treated with doxorubicin. The clear separation of these cells by treatment suggests that doxorubicin significantly alters gene expression.
+```{r}
+plot_cells(cds, color_cells_by = "condition") 
+#+
+  #scale_color_manual(values = c("black", "red"))
+
+```
+
+Q2-2. Using the monocle3 function plot_cells, visualize the expression of the marker genes that you examined in Assignment #1 Q2-3 on your UMAP. For dataset 1, plot the expression levels of CDKN1A and PMAIP1. For dataset 2, plot the expression levels of CDH1 and FN1. How does the expression of these genes relate to the distribution of cells in UMAP space? Do all treatment-exposed cells partition across areas of low or high marker expression as you would expect given exposure? [10 pts].
+
+In the case of the CDKN1A gene, there is a noticeable increase in expression among cells exposed to treatment, indicating a higher prevalence of this gene's activation in response to the treatment. Under the mock treatment, some cells do not express CDKN1A gene.
+
+For the PMAIP1 gene, the majority of cells subjected to treatment exhibit little to no expression, suggesting a varied or limited activation of this gene in the treated cell population.
+```{r}
+plot_cells(cds, genes = 'CDH1') 
+plot_cells(cds, genes = 'FN1') 
+```
+ 
+
+Q2-3. Cluster cells with similar gene expression patterns using the monocle3 function cluster_cells specifying PCA as the reduction_method and a resolution parameter of 0.001. cluster_cells uses an algorithm called Leiden community detection to identify local cell relationships (i.e., cell clusters). Annotate your colData using the output of the monocle3 function clusters (specifying PCA as the reduction_method, i.e., reduction_method == "PCA") to include, for every cell, which cluster a cell belongs to, respectively. *Note: a vector such as the output of clusters can be added to a colData DFrame object by using the $ operator (e.g., colData(cds)$new_column = new_column).
+
+```{r}
+cds <- cluster_cells(cds,reduction_method = 'PCA',resolution = 0.001)
+cell_clusters <- clusters(cds, reduction_method = "PCA")
+colData(cds)$cluster_id = cell_clusters
+plot_cells(cds,color_cells_by = "cluster_id")
+
+```
+
+
+How many unique clusters are in your dataset? Generate a bar plot of the frequency of cells across clusters to examine how treatment-exposed cells partition across your clusters. Is the distribution of treated and untreated cells similar across exposures? [10 pts].
+
+There are 2 clusters in my dataset.
+Cells that get treated are more expressed in cluster2. Cells in cluster 1 are more to be mock.
+```{r}
+
+plot_data <- as.data.frame(table(colData(cds)$cluster_id, colData(cds)$treatment))
+names(plot_data) <- c("Cluster", "Treatment", "Frequency")
+
+# Generate the bar plot
+ggplot(plot_data, aes(x = Cluster, y = Frequency, fill = Treatment)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_minimal() +
+  labs(x = "Cluster", y = "Number of Cells", title = "Frequency of Cells Across Clusters by Treatment Status")
+
+```
+
+
+
+Q3. Effect of genetic perturbation on drug-induced phenotypes.
+
+Q3-1. The gene column in colData refers to the gene targeted by the sgRNA identified for each cell in your dataset. Similar to Q1-3, generate a bar plot to examine the distribution of genetically perturbed and unperturbed cells across cell clusters. Are all genotypes distributed similarly to nontargeting control sgRNA-expressing cells? [5 pts].
+```{r}
+library(dplyr)
+library(ggplot2)
+df <- as.data.frame(colData(cds))
+cell_proportion_df <- df %>% group_by(gene,cluster_id) %>% dplyr::summarize(cells_per_cluster = n()) %>% group_by(cluster_id) %>% mutate(freq_per_cluster = cells_per_cluster/sum(cells_per_cluster))
+
+
+```
+
+```{r}
+ggplot(cell_proportion_df, aes(x =cluster_id, y = freq_per_cluster, fill =gene)) + geom_bar(stat = "identity",position = position_dodge())
+
+```
+One sgRNA TP53 show to have more counts in cluster 2. NonTageting also shows a little higher in cluster 1. while other target genes shows to have slightly larger amount of cells in cluster 1, but similar distribution.
+
+Q3-2. Focusing on the subset of cells exposed to treatment in your dataset (i.e., excluding untreated mock controls), use violin plots to examine the expression of the marker genes from Assignment #2 Q1-2 (dataset 1: CDKN1A and PMAIP1, dataset 2: CDH1 and FN1) for your dataset (remember to add a pseudocount of 1). Are the differences statistically significant? Is the effect consistent with the drug’s mechanism of action and the molecular role of the sgRNA-targeted gene? Focus on the sgRNA-targeted gene that appears to have the largest effect on marker expression compared to nontargeting control sgRNA-expressing cells [10 pts].
+
+While doing pairwise significant test, sgRNA TP53 is signifantly different from other sgRNA under the two marker genes, with a significant lower expression under marker CDKN1A, and significant higher expression under marker marker PMAIP1. 
+
+NONTARGETING vs TP53 under marker CDKN1A: p.adjust = 9.023874e-35
+NONTARGETING vs TP53 under marker PMAIP1: p.adjust = 1.301841e-26
+
+The marker should focus on is CDKN1A.
+
+Lower Expression of CDKN1A in TP53-Targeted Cells:
+CDKN1A is a cyclin-dependent kinase inhibitor induced by TP53, which leads to cell cycle arrest in the G1 phase. A significant lower expression of CDKN1A upon TP53 perturbation suggests that the pathway for cell cycle arrest is disrupted when TP53 function is compromised.
+Doxorubicin's mechanism of action, which involves DNA intercalation and topoisomerase II inhibition, typically results in DNA damage that would normally activate TP53, leading to increased CDKN1A expression.
+The observation of lower CDKN1A expression in cells with TP53 targeted by sgRNA is consistent with the disruption of the normal TP53-mediated DNA damage response due to doxorubicin.
+
+
+```{r}
+
+treated_cds = cds[,colData(cds)$treatment == "doxorubicin"]
+
+plot_genes_violin(treated_cds[rowData(treated_cds)$gene_short_name == "CDKN1A",], group_cells_by = "gene", pseudocount = 1) + ggpubr::stat_compare_means(method = "kruskal.test",label = "p.signif")
+
+cdkn1a_data <- treated_cds[rowData(treated_cds)$gene_short_name == "CDKN1A",]
+expression_values <- exprs(cdkn1a_data) + 1
+df_for_test <- data.frame(
+  sgRNA = colData(cdkn1a_data)$gene,
+  expression = as.numeric(expression_values)
+)
+df_for_test$sgRNA <- factor(df_for_test$sgRNA)
+pairwise_combinations <- combn(levels(df_for_test$sgRNA), 2, simplify = FALSE)
+pairwise_results <- lapply(pairwise_combinations, function(sgRNA_pair) {
+  data_subset <- df_for_test %>% filter(sgRNA %in% sgRNA_pair)
+  test_result <- wilcox.test(expression ~ sgRNA, data = data_subset)
+  c(sgRNA_pair = paste(sgRNA_pair, collapse = " vs "), p.value = test_result$p.value)
+})
+pairwise_results_df <- do.call(rbind.data.frame, pairwise_results)
+names(pairwise_results_df) <- c("sgRNA1_vs_sgRNA2", "p.value")
+pairwise_results_df$p.adjusted <- p.adjust(pairwise_results_df$p.value, method = "BH")
+pairwise_results_df$significant <- ifelse(pairwise_results_df$p.adjusted >= 0.01, 'ns', 
+                                  ifelse(pairwise_results_df$p.adjusted < 0.01 & pairwise_results_df$p.adjusted >= 0.001, '**',
+                                  ifelse(pairwise_results_df$p.adjusted < 0.001 & pairwise_results_df$p.adjusted >= 0.0001, '***',
+                                  '****')))
+print(pairwise_results_df)
+
+
+plot_genes_violin(treated_cds[rowData(treated_cds)$gene_short_name == "PMAIP1",], group_cells_by = "gene", pseudocount = 1) + ggpubr::stat_compare_means(method = "kruskal.test",label = "p.signif")
+
+
+PMAIP1_data <- treated_cds[rowData(treated_cds)$gene_short_name == "PMAIP1",]
+expression_values <- exprs(PMAIP1_data) + 1
+df_for_test <- data.frame(
+  sgRNA = colData(PMAIP1_data)$gene,
+  expression = as.numeric(expression_values)
+)
+df_for_test$sgRNA <- factor(df_for_test$sgRNA)
+pairwise_combinations <- combn(levels(df_for_test$sgRNA), 2, simplify = FALSE)
+pairwise_results <- lapply(pairwise_combinations, function(sgRNA_pair) {
+  data_subset <- df_for_test %>% filter(sgRNA %in% sgRNA_pair)
+  test_result <- wilcox.test(expression ~ sgRNA, data = data_subset)
+  c(sgRNA_pair = paste(sgRNA_pair, collapse = " vs "), p.value = test_result$p.value)
+})
+pairwise_results_df <- do.call(rbind.data.frame, pairwise_results)
+names(pairwise_results_df) <- c("sgRNA1_vs_sgRNA2", "p.value")
+pairwise_results_df$p.adjusted <- p.adjust(pairwise_results_df$p.value, method = "BH")
+pairwise_results_df$significant <- ifelse(pairwise_results_df$p.adjusted >= 0.01, 'ns', 
+                                  ifelse(pairwise_results_df$p.adjusted < 0.01 & pairwise_results_df$p.adjusted >= 0.001, '**',
+                                  ifelse(pairwise_results_df$p.adjusted < 0.001 & pairwise_results_df$p.adjusted >= 0.0001, '***',
+                                  '****')))
+
+print(pairwise_results_df)
+
+
+
+```
+
+ 
+
+Q3-3. Re-plot your UMAP from Q1, visualizing only the subset of treatment-exposed cells expressing non-targeting control sgRNAs and sgRNAs against the gene identified in Q2-2. Do all cells for each genotype co-segregate in UMAP space? Do you observe any heterogeneity in how cells partition across UMAP space? Given the marker expression plots from Q1-2, are all cells for a given genotype responding equally? [10 pts]. Note: it may be useful to define the color of the cells by genotype yourself using scale_color_manual (see below).
+
+Cells of different genetypes are mixed, while genetype TP53 is isolated from other cells.
+
+The isolation of TP53-perturbed cells might indicate that the perturbation of this gene triggers a robust cellular response, which could include activation of DNA damage pathways, cell cycle arrest, or induction of apoptosis, depending on the nature of the perturbation and the cellular context.
+
+Marker PMAIP1 is more enriched in TP53-perturbed cells, while marker CDKN1A is evenly distributed.
+
+PMAIP1, a pro-apoptotic marker, being more enriched in TP53-perturbed cells, is consistent with the known activation of apoptotic pathways following TP53 perturbation. This could indicate that despite the sgRNA perturbation, the cells are still capable of initiating apoptosis, potentially through TP53-independent pathways or due to incomplete silencing of TP53.
+
+CDKN1A (p21), a cell cycle regulator, being evenly distributed, could suggest that the TP53 perturbation does not significantly disrupt the cell cycle control mechanisms or that there is compensation from other pathways maintaining cell cycle control.
+
+```{r}
+treated_cds <- preprocess_cds(treated_cds)
+plot_pc_variance_explained(treated_cds)
+treated_cds <- reduce_dimension(treated_cds,reduction_method = c("UMAP"))
+plot_cells(treated_cds, color_cells_by="gene")+theme(legend.position = "right")
+```
+```{r}
+plot_cells(treated_cds, genes = 'PMAIP1')
+plot_cells(treated_cds, genes = 'CDKN1A')
+```
+Selecting only the non-targeting control sgRNAs and TP53 sgRNAs. Cells get well seperated. 
+marker PMAIP1 does not show up in all cells, only concentrated in TP53 sgRNAs. 
+marker CDKN1A is generally same expressed under this two sgRNAs.
+
+
+
+
+
+Bonus. Generate a violin plot of the expression of the top upregulated, and top downregulated gene in response to exposure for your dataset (from Assignment #2) as a function of both genotype (gene in colData) and treatment (treatment in colData, remember to add a pseudocount of 1). [2 pts].
+```{r}
+df_sorted[1,]
+df_sorted[nrow(df_sorted),]
+```
+```{r}
+cdstop1 <- cds[rowData(cds)$gene_short_name =='GDF15',]
+cdsdown1 <- cds[rowData(cds)$gene_short_name =='HMMR',]
+
+```
+
+```{r}
+plot_genes_violin(cdstop1, group_cells_by = "treatment", pseudocount = 1)
+plot_genes_violin(cdstop1, group_cells_by = "gene", pseudocount = 1)
+
+```
+
+```{r}
+plot_genes_violin(cdsdown1, group_cells_by = "treatment", pseudocount = 1)
+plot_genes_violin(cdsdown1, group_cells_by = "gene", pseudocount = 1)
+
+
+```

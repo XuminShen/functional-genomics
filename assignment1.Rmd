@@ -1,0 +1,184 @@
+---
+title: "Assignment1"
+author: "Xumin Shen"
+date: "2023-09-14"
+output: html_document
+---
+
+
+## Q1. Dataset QC.
+```{r}
+library(dplyr)
+library(ggplot2)
+library(monocle3)
+setwd("/Users/azizilab/Documents/BMEN4500/dataset1/")
+cds <- readRDS("dataset1.rds")
+
+```
+
+
+
+
+## Q1-1. How many unique samples are in your dataset?
+
+Ans: 2 samples
+```{r}
+unique(colData(cds)$sample)
+```
+
+## What is the median number of unique transcripts (UMIs) per cell for each sample? 
+
+Ans: median number of unique transcripts (UMIs) per cell for sample singles_mock_SI-3A-A5: 22756; 
+
+median number of unique transcripts (UMIs) per cell for sample singles_dox_100nm_SI-3A-A6: 15865
+```{r}
+columndata <- cds %>% colData() %>% as.data.frame()
+median(columndata[colData(cds)$sample == "singles_mock_SI-3A-A5" , ]$total_umis)
+median(columndata[colData(cds)$sample == "singles_dox_100nm_SI-3A-A6" , ]$total_umis)
+```
+
+## Provide the distribution of UMIs per cell for each sample in the form of a violin plot. [5 pts] Bonus: Overlay (plot) the median number of UMIs per cell on top of your violins. Hint: Overlaying a boxplot could work. [1 pt]
+
+
+```{r}
+#### Plot_results and save
+plot_df <- cds %>% colData() %>% as.data.frame()
+
+# Create a boxplot with median as the summary statistic
+ggplot(plot_df, aes(x = sample, y = total_umis, fill = sample)) +
+  geom_violin() +
+  stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange")
+  
+
+```
+
+
+## Q1-2. How many genes are in your dataset? 
+
+Ans: 32738 genes
+```{r}
+rowData(cds)
+```
+
+## What is the median number of genes quantified per cell for each sample? 
+
+Ans: median number of genes quantified per cell for sample singles_mock_SI-3A-A5: 4651
+
+median number of genes quantified per cell for sample singles_dox_100nm_SI-3A-A6: 3582
+
+```{r}
+cds_1<-detect_genes(cds,min_expr = 0)
+
+columndata2 <- cds_1 %>% colData() %>% as.data.frame()
+median(columndata2[colData(cds_1)$sample == "singles_mock_SI-3A-A5" , ]$num_genes_expressed)
+median(columndata2[colData(cds_1)$sample == "singles_dox_100nm_SI-3A-A6" , ]$num_genes_expressed)
+```
+
+## Provide the distribution of the number of capture genes per cell for each sample in the form of a violin plot. [5 pts] Bonus: Overlay (plot) the median number of genes per cell on top of your violins. Hint: Overlaying a boxplot could work. [1 pt]
+
+```{r}
+plot_df <- cds_1 %>% colData() %>% as.data.frame()
+
+ggplot(plot_df, aes(x = sample, y = num_genes_expressed, fill = sample)) +
+  geom_violin() +
+  stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange")
+
+
+```
+
+## Q1-3. What unique treatments are present in your dataset? 
+
+Ans: mock, doxorubicin
+
+```{r}
+unique(colData(cds)$treatment)
+```
+
+## Generate a summary of the total number of cells for every treatment. [5 pts]
+
+Ans: 1615 cells under treatment mock
+
+1403 cells under treatment doxorubicin
+
+```{r}
+sum(colData(cds)$treatment=='mock')
+sum(colData(cds)$treatment=='doxorubicin')
+
+```
+
+## Q1-4. Briefly describe the mechanism of action (i.e., what does it do?) for the treatments to which cells in your dataset were exposed. (Note: focus on the treatment that is not the untreated or mock control). [5 pts]
+
+1. Cell Culture: MCF10A immortalized breast epithelial cells and K562 cells were cultured in specific growth media with supplements.
+
+2. Generating Inducible Cas9-expressing Cell Lines: Lentiviruses containing doxycycline-inducible or constitutively expressed Cas9 constructs were produced and used to transduce MCF10A cells. Selection with puromycin or blasticidin was performed to establish stable cell lines expressing Cas9.
+
+3. Tagged Transcript Cloning: A modified lentivirus vector was created to contain barcoded single-guide RNA (sgRNA) sequences. Oligos with guide sequences and barcodes were designed, ordered, and assembled into the lentiviral vector.
+
+pHAGE and CROP-seq Vector Cloning: pHAGE_dsRed_IRES_zsGreen vector was modified to contain a multiple cloning site. Libraries of oligos corresponding to individual guides with homology for Gibson assembly were prepared and cloned into the vector.
+
+4. Quantification of Template Switching: A multiple-cloning site was cloned into the pHAGE_dsRed_IRES_zsGreen lentiviral vector, and experiments were conducted to quantify template switching in lentivirus packaging using fluorescence-activated cell sorting (FACS).
+
+5. CRISPRi Experiment: K562 and MCF10A cells expressing dCas9-BFP-KRAB were transduced with sgRNAs targeting the CAG promoter, and mCherry expression was assayed.
+
+6. Editing-Rate Experiment for pHAGE-scKO: Editing efficiency of the pHAGE-scKO vector was confirmed by editing the TP53 gene in MCF10A cells and assessing the editing rates.
+
+7. Knockout Experiments: Lentiviral libraries containing sgRNAs were generated and transduced into cells for knockout experiments.
+
+8. Doxorubicin Treatment: After genome editing, cells were treated with different concentrations of doxorubicin, and their responses were evaluated. Doxorubicin is an antibiotic that originates from the Streptomyces peucetius bacterium. The primary mechanism through which doxorubicin operates involves its capacity to insert itself between DNA base pairs. This action leads to the breakage of DNA strands and hinders the synthesis of both DNA and RNA. Additionally, doxorubicin obstructs the function of the enzyme topoisomerase II, resulting in DNA damage and the triggering of apoptosis. When doxorubicin is coupled with iron, it also induces oxidative damage to DNA via free radicals, further impeding DNA synthesis. The use of iron chelators like dexrazoxane may prevent the formation of free radicals by limiting the binding of doxorubicin with iron.
+
+
+9. Single-Cell RNA Sequencing: Cells were captured using 10X Chromium devices, and single-cell RNA sequencing was performed to assess gene expression profiles.
+
+10. Enrichment PCR: Enrichment PCR was used to amplify barcode sequences from full-length cDNA to identify cell genotypes.
+
+11. Digital Gene Expression Quantification: CellRanger was used to process sequencing data and generate gene expression profiles.
+
+12. Assigning Cell Genotypes: Cell barcodes and UMIs were assigned to specific guides or barcodes based on sequence matching to a whitelist.
+
+13. Estimation of Multiplicity of Infection and Capture Rate: A statistical model was used to estimate the multiplicity of infection and capture rate based on the distribution of guide counts per cell.
+
+
+
+
+
+## Q2. Concepts from class.
+
+## Q2-1. The telomere-to-telomere (T2T) consortium aims to create a “gapless” sequence of the human genome. A major goal is to assemble large regions of highly repetitive sequences that could not be unambiguously mapped by the human genome project from Sanger sequencing. Which of the next-generation sequencing technologies discussed in class would you choose to increase the probability of obtaining a correct genome assembly for these regions? Briefly describe your reasoning. [10 pts] Hint: The read lengths in Sanger sequencing rarely exceed 1 kb.
+
+Oxford Nanopore sequencing stands out as an ideal choice for the assembly of highly repetitive regions in the human genome due to its unique features and capabilities. Firstly, it excels in producing exceptionally long read lengths, often exceeding tens of kilobases or more. These extended reads are pivotal for effectively spanning and disentangling highly repetitive sequences, which can be much longer than the typical read lengths generated by other sequencing technologies.
+
+Another key advantage of Oxford Nanopore sequencing is its real-time sequencing methodology. This approach enables the continuous generation of sequencing data as DNA passes through a nanopore. This real-time aspect allows researchers to monitor the sequencing process as it unfolds, providing valuable insights into sequencing quality and accuracy. Furthermore, the continuous sequencing nature of this technology enhances the chances of accurately resolving repetitive regions.
+
+Moreover, Oxford Nanopore sequencing operates on the principle of single-molecule sequencing, akin to PacBio SMRT sequencing. It sequences individual DNA molecules without the need for PCR amplification. This attribute is particularly advantageous when dealing with repetitive regions, as PCR amplification can introduce errors and generate chimeric sequences, which can be highly problematic in these regions.
+
+Lastly, the versatility of Oxford Nanopore sequencing is worth noting. It can be applied to various types of DNA sources, encompassing DNA fragments, cDNA, and even direct RNA sequencing. This versatility empowers researchers to adapt the technology to different experimental setups and various forms of highly repetitive sequences.
+
+
+
+## Q2-2. You performed a genome-wide association study across cases and controls to identify genomic regions associated with an increased risk of atherosclerosis. In total, you assayed 1 x 10^6 single nucleotide polymorphisms (SNPs), and analysis of association identified SNPs in linkage disequilibrium with the IRF6 and BHMT as the two loci with the highest deviation in proportion across cases and controls from the expected (IRF6: p-value = 2.4 x10^-7, BHMT: p-value = 5.8 x 10^-24). After correction for multiple hypothesis testing by the Bonferroni method, which of these would you consider significant hits. Do your GWAS results alone confirm the involvement of that gene in the disease? What are other possibilities? [10 pts]
+
+ANS:
+
+In a genome-wide association study (GWAS), correcting for multiple hypothesis testing is essential to minimize the risk of false positives. The Bonferroni correction is a conservative method for controlling the family-wise error rate, and it involves dividing the significance threshold (usually 0.05) by the number of tests performed. In your case, you assayed 1 x 10^6 SNPs, so after Bonferroni correction, the significance threshold would be 0.05 / 1 x 10^6, which is extremely stringent.
+
+IRF6: 2.4 x 10^-7 > (0.05 / 1 x 10^6), so it does not reach the significance threshold after Bonferroni correction.
+
+BHMT: 5.8 x 10^-24 < (0.05 / 1 x 10^6), so it does meet the significance threshold after Bonferroni correction.
+
+Given that BHMT meets the significance threshold after Bonferroni correction, it can be considered a significant hit in the GWAS analysis. This suggests a strong association between genetic variations in the BHMT gene and the risk of atherosclerosis.
+
+However, it's important to note that GWAS results alone do not confirm the causal involvement of a gene in the disease. They identify statistical associations between genetic variants and the disease phenotype but do not establish causation. Other possibilities to consider include:
+
+False Positives: Despite stringent corrections for multiple testing, there is still a chance of false positives. Replication studies in independent cohorts are often required to validate the findings and strengthen the evidence for a gene's involvement.
+
+Linkage Disequilibrium (LD): The identified SNPs may be in LD with variants in other nearby genes. Further fine-mapping studies are needed to pinpoint the specific causal variants and genes.
+
+Functional Validation: To confirm the biological relevance of the identified genes, functional experiments, such as in vitro or in vivo studies, are necessary. These experiments can help establish a causal link between the gene and the disease mechanism.
+
+Gene-Gene Interactions: Atherosclerosis is a complex disease influenced by multiple genes and environmental factors. The role of a single gene may be modulated by interactions with other genes. These interactions should be explored to gain a comprehensive understanding of the genetic basis of the disease.
+
+
+
+
